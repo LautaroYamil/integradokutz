@@ -10,7 +10,7 @@ class BackupApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Gestor de Backups de Red")
-        self.root.geometry("1000x600")
+        self.root.geometry("1100x650")  # Aumentado para mejor visualización
         
         self.dao = DispositivoDAO()
         self.backup_manager = BackupManager()
@@ -27,76 +27,88 @@ class BackupApp:
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Device list frame
-        list_frame = ttk.LabelFrame(main_frame, text="Dispositivos", padding=10)
-        list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        self.tree = ttk.Treeview(list_frame, columns=('Nombre', 'IP', 'Tipo', 'Frecuencia'), show='headings', height=20)
-        for col in ('Nombre', 'IP', 'Tipo', 'Frecuencia'):
+        list_frame = ttk.LabelFrame(main_frame, text="Dispositivos Registrados", padding=10)
+        list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.tree = ttk.Treeview(list_frame, columns=('Nombre', 'IP', 'Puerto', 'Tipo', 'Frecuencia'), show='headings', height=15)
+        for col, anchor in [('Nombre', 'w'), ('IP', 'center'), ('Puerto', 'center'), ('Tipo', 'center'), ('Frecuencia', 'center')]:
             self.tree.heading(col, text=col)
-            self.tree.column(col, anchor=tk.CENTER)
+            self.tree.column(col, anchor=anchor, width=100)
         self.tree.pack(fill=tk.BOTH, expand=True)
         
         # Buttons for device operations
         btn_frame = ttk.Frame(list_frame)
         btn_frame.pack(fill=tk.X, pady=5)
         
-        for text, cmd in [
-            ("Agregar", self.mostrar_formulario),
-            ("Editar", self.editar_dispositivo),
-            ("Eliminar", self.eliminar_dispositivo),
-            ("Backup", self.realizar_backup_seleccionado),
-            ("Probar SSH", self.probar_conexion_ssh)
-        ]:
-            ttk.Button(btn_frame, text=text, command=cmd).pack(side=tk.LEFT, padx=5, pady=5)
+        action_buttons = [
+            ("➕ Agregar", self.mostrar_formulario),
+            ("✏️ Editar", self.editar_dispositivo),
+            ("🗑️ Eliminar", self.eliminar_dispositivo),
+            ("💾 Backup", self.realizar_backup_seleccionado),
+            ("🔍 Probar SSH", self.probar_conexion_ssh)
+        ]
+        
+        for text, cmd in action_buttons:
+            btn = ttk.Button(btn_frame, text=text, command=cmd, width=12)
+            btn.pack(side=tk.LEFT, padx=2, pady=2)
         
         # Device form frame
-        form_frame = ttk.LabelFrame(main_frame, text="Formulario de Dispositivo", padding=10)
-        form_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        form_frame = ttk.LabelFrame(main_frame, text="Gestión de Dispositivo", padding=10)
+        form_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Form fields
         campos = [
             ("Nombre", "nombre_entry"),
-            ("IP", "ip_entry"),
+            ("Dirección IP", "ip_entry"),
             ("Usuario", "usuario_entry"),
             ("Contraseña", "contraseña_entry"),
             ("Puerto SSH", "puerto_entry"),
-            ("Tipo", "tipo_combobox", ["Router", "Switch", "Firewall", "Otro"]),
-            ("Frecuencia de Backup", "frecuencia_combobox", ["Diario", "Semanal", "Mensual", "Manual"])
+            ("Tipo", "tipo_combobox", ["Router", "Switch", "Firewall", "Servidor", "Otro"]),
+            ("Frecuencia Backup", "frecuencia_combobox", ["Diario", "Semanal", "Mensual", "Manual"])
         ]
         
         self.campos = {}
         for idx, (label, name, *extra) in enumerate(campos):
-            ttk.Label(form_frame, text=label + ":").grid(row=idx, column=0, sticky=tk.W, pady=4)
+            ttk.Label(form_frame, text=label + ":").grid(row=idx, column=0, sticky=tk.W, pady=3, padx=5)
             if name.endswith("combobox"):
                 cb = ttk.Combobox(form_frame, values=extra[0], state="readonly")
-                cb.grid(row=idx, column=1, sticky=tk.EW, pady=4)
+                cb.grid(row=idx, column=1, sticky=tk.EW, pady=3, padx=5)
                 self.campos[name] = cb
             else:
-                entry = ttk.Entry(form_frame, show="*" if "contraseña" in name else None)
-                entry.grid(row=idx, column=1, sticky=tk.EW, pady=4)
+                show = "*" if "contraseña" in name else None
+                default = "22" if "puerto" in name else ""
+                entry = ttk.Entry(form_frame, show=show)
+                entry.insert(0, default)
+                entry.grid(row=idx, column=1, sticky=tk.EW, pady=3, padx=5)
                 self.campos[name] = entry
-                if "puerto" in name:
-                    entry.insert(0, "22")  # Default SSH port
-        
+
         form_frame.columnconfigure(1, weight=1)
         
         # Form buttons
         action_frame = ttk.Frame(form_frame)
-        action_frame.grid(row=len(campos), column=0, columnspan=2, pady=10)
-        ttk.Button(action_frame, text="Guardar", command=self.guardar_dispositivo).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="Cancelar", command=self.limpiar_formulario).pack(side=tk.LEFT, padx=5)
+        action_frame.grid(row=len(campos)+1, column=0, columnspan=2, pady=10)
+        ttk.Button(action_frame, text="💾 Guardar", command=self.guardar_dispositivo, width=12).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="✖ Cancelar", command=self.limpiar_formulario, width=12).pack(side=tk.LEFT, padx=5)
         
         # Log frame
         log_frame = ttk.LabelFrame(self.root, text="Registro de Actividades", padding=10)
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        self.log_text = tk.Text(log_frame, height=6, state=tk.DISABLED)
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0,10))
+        
+        self.log_text = tk.Text(log_frame, height=8, state=tk.DISABLED, wrap=tk.WORD)
+        scrollbar = ttk.Scrollbar(log_frame, command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=scrollbar.set)
+        
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
     def cargar_dispositivos(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
-        for d in self.dao.obtener_todos():
-            self.tree.insert('', tk.END, values=(d.nombre, d.ip, d.tipo, d.frecuencia_backup), iid=d.id)
+        dispositivos = self.dao.obtener_todos()
+        for d in dispositivos:
+            self.tree.insert('', tk.END, 
+                           values=(d.nombre, d.ip, d.puerto_ssh, d.tipo, d.frecuencia_backup), 
+                           iid=d.id)
 
     def mostrar_formulario(self, dispositivo=None):
         self.limpiar_formulario()
@@ -118,96 +130,103 @@ class BackupApp:
                     widget.insert(0, "22")
             else:
                 widget.set('')
+        self.dispositivo_actual = None
 
     def guardar_dispositivo(self):
         try:
-            nombre = self.campos['nombre_entry'].get()
-            ip = self.campos['ip_entry'].get()
-            usuario = self.campos['usuario_entry'].get()
+            # Obtener valores del formulario
+            nombre = self.campos['nombre_entry'].get().strip()
+            ip = self.campos['ip_entry'].get().strip()
+            usuario = self.campos['usuario_entry'].get().strip()
             contraseña = self.campos['contraseña_entry'].get()
             puerto = int(self.campos['puerto_entry'].get() or 22)
             tipo = self.campos['tipo_combobox'].get()
             frecuencia = self.campos['frecuencia_combobox'].get()
 
+            # Validaciones
             if not all([nombre, ip, usuario, tipo, frecuencia]):
                 raise ValueError("Todos los campos son obligatorios")
+            if not 1 <= puerto <= 65535:
+                raise ValueError("Puerto debe estar entre 1 y 65535")
 
+            # Crear/actualizar dispositivo
             dispositivo = Dispositivo(
-                nombre=nombre, 
-                ip=ip,
-                  usuario=usuario,
-                contraseña=contraseña,
-                  tipo=tipo,
-                frecuencia_backup=frecuencia,
-                  puerto_ssh=puerto
+                nombre=nombre, ip=ip, usuario=usuario,
+                contraseña=contraseña, tipo=tipo,
+                frecuencia_backup=frecuencia, puerto_ssh=puerto
             )
 
             if self.dispositivo_actual:
                 dispositivo.id = self.dispositivo_actual.id
                 self.dao.actualizar(dispositivo)
-                self.log(f"Dispositivo actualizado: {nombre}")
+                self.log(f"Dispositivo actualizado: {nombre} ({ip}:{puerto})")
             else:
                 self.dao.guardar(dispositivo)
-                self.log(f"Dispositivo agregado: {nombre}")
+                self.log(f"Dispositivo agregado: {nombre} ({ip}:{puerto})")
 
             self.cargar_dispositivos()
             self.limpiar_formulario()
+
         except ValueError as e:
-            messagebox.showerror("Error", f"Datos inválidos: {str(e)}")
+            messagebox.showerror("Error de validación", str(e))
         except Exception as e:
-            messagebox.showerror("Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("Error inesperado", f"Ocurrió un error: {str(e)}")
 
     def editar_dispositivo(self):
         if seleccionado := self.tree.selection():
             dispositivo = self.dao.obtener_por_id(int(seleccionado[0]))
             self.mostrar_formulario(dispositivo)
         else:
-            messagebox.showwarning("Advertencia", "Seleccione un dispositivo")
+            messagebox.showwarning("Selección requerida", "Por favor seleccione un dispositivo de la lista")
 
     def eliminar_dispositivo(self):
         if seleccionado := self.tree.selection():
             dispositivo = self.dao.obtener_por_id(int(seleccionado[0]))
-            if messagebox.askyesno("Confirmar", f"¿Eliminar {dispositivo.nombre}?"):
+            if messagebox.askyesno(
+                "Confirmar eliminación",
+                f"¿Está seguro de eliminar el dispositivo:\n\n{dispositivo.nombre} ({dispositivo.ip})?",
+                icon='warning'
+            ):
                 self.dao.eliminar(dispositivo.id)
                 self.log(f"Dispositivo eliminado: {dispositivo.nombre}")
                 self.cargar_dispositivos()
         else:
-            messagebox.showwarning("Advertencia", "Seleccione un dispositivo")
+            messagebox.showwarning("Selección requerida", "Por favor seleccione un dispositivo de la lista")
 
     def realizar_backup_seleccionado(self):
         if seleccionado := self.tree.selection():
             dispositivo = self.dao.obtener_por_id(int(seleccionado[0]))
-            self.log(f"Iniciando backup para {dispositivo.nombre}...")
+            self.log(f"Iniciando backup de {dispositivo.nombre}...")
             threading.Thread(
                 target=self._realizar_backup,
                 args=(dispositivo,),
                 daemon=True
             ).start()
         else:
-            messagebox.showwarning("Advertencia", "Seleccione un dispositivo")
+            messagebox.showwarning("Selección requerida", "Por favor seleccione un dispositivo de la lista")
 
     def _realizar_backup(self, dispositivo):
         try:
             if self.backup_manager.realizar_backup(dispositivo):
-                self.log(f"Backup completado para {dispositivo.nombre}")
+                self.log(f"✓ Backup completado: {dispositivo.nombre}")
             else:
-                self.log(f"Error en backup para {dispositivo.nombre}")
+                self.log(f"✗ Falló backup: {dispositivo.nombre}")
         except Exception as e:
-            self.log(f"Error durante backup: {str(e)}")
+            self.log(f"⚠ Error durante backup: {str(e)}")
 
     def probar_conexion_ssh(self):
         if seleccionado := self.tree.selection():
             dispositivo = self.dao.obtener_por_id(int(seleccionado[0]))
             self.log(f"Probando conexión SSH a {dispositivo.nombre}...")
             threading.Thread(
-                target=self._probar_ssh,
+                target=self._probar_conexion_ssh,
                 args=(dispositivo,),
                 daemon=True
             ).start()
         else:
-            messagebox.showwarning("Advertencia", "Seleccione un dispositivo")
+            messagebox.showwarning("Selección requerida", "Por favor seleccione un dispositivo de la lista")
 
-    def _probar_ssh(self, dispositivo):
+    def _probar_conexion_ssh(self, dispositivo):
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -217,16 +236,17 @@ class BackupApp:
                 username=dispositivo.usuario,
                 password=dispositivo.contraseña,
                 timeout=5,
-                look_for_keys=False
+                look_for_keys=False,
+                allow_agent=False
             )
             ssh.close()
-            self.log(f"Conexión SSH exitosa a {dispositivo.nombre}")
+            self.log(f"✓ Conexión SSH exitosa: {dispositivo.nombre} ({dispositivo.ip}:{dispositivo.puerto_ssh})")
         except Exception as e:
-            self.log(f"Error en conexión SSH: {str(e)}")
+            self.log(f"✗ Falló conexión SSH: {str(e)}")
 
     def log(self, mensaje):
         self.log_text.config(state=tk.NORMAL)
-        self.log_text.insert(tk.END, f"{mensaje}\n")
+        self.log_text.insert(tk.END, mensaje + "\n")
         self.log_text.config(state=tk.DISABLED)
         self.log_text.see(tk.END)
 
